@@ -1,10 +1,10 @@
-# Simulación de Ecosistema — Versión Secuencial y Paralela (OpenMP)
+# 🚦 Simulación de Tráfico — Versión Secuencial y Paralela (OpenMP)
 
-Este proyecto implementa una simulación simplificada de un ecosistema con **plantas**, **herbívoros** y **depredadores**, en dos variantes:
+Este proyecto implementa una simulación simplificada de tráfico con **vehículos** y **semáforos**, en dos variantes:
 - **Secuencial** (`simulacion_secuencial.c`)
 - **Paralela** con **OpenMP** (`simulacion_paralela.c`)
 
-Permite comparar rendimiento entre ejecución en un solo hilo y en múltiples hilos.
+El objetivo es comparar el rendimiento y la lógica entre una ejecución en un solo hilo y una ejecución aprovechando el paralelismo (dinámico, anidado, `sections` y `parallel for`).
 
 ---
 
@@ -12,17 +12,16 @@ Permite comparar rendimiento entre ejecución en un solo hilo y en múltiples hi
 
 ### Secuencial
 ```bash
-gcc -O3 -march=native -std=c11 simulacion_secuencial.c -o sim_seq.exe
+gcc -O2 -std=c11 simulacion_secuencial.c -o sim_seq
 ```
 
 ### Paralela (OpenMP)
 ```bash
-gcc -O3 -march=native -std=c11 -fopenmp simulacion_paralela.c -o sim_omp.exe
+gcc -O2 -std=c11 -fopenmp simulacion_paralela.c -o sim_omp
 ```
 
 **Banderas usadas:**
-- `-O3` → optimización alta.
-- `-march=native` → usa instrucciones específicas de tu CPU.
+- `-O2` → optimización estándar.
 - `-std=c11` → estándar de C 2011.
 - `-fopenmp` → activa soporte para OpenMP (solo versión paralela).
 
@@ -32,47 +31,21 @@ gcc -O3 -march=native -std=c11 -fopenmp simulacion_paralela.c -o sim_omp.exe
 
 Formato general:
 ```bash
-./ejecutable  W  H  steps  nHerb  nPred  seed
+./ejecutable  iteraciones  num_semaforos  num_vehiculos  longitud_carril
 ```
 
-| Parámetro | Significado | Efecto |
-|-----------|-------------|--------|
-| `W`       | Ancho del mundo (número de celdas) | Más grande → más trabajo de cómputo |
-| `H`       | Alto del mundo | Igual que `W` |
-| `steps`   | Pasos de simulación | Más pasos → más tiempo y evolución |
-| `nHerb`   | Herbívoros iniciales | Afecta rapidez de consumo de plantas |
-| `nPred`   | Depredadores iniciales | Afecta presión sobre herbívoros |
-| `seed`    | Semilla aleatoria | Igual semilla = misma simulación |
+| Parámetro        | Significado                               |
+|------------------|-------------------------------------------|
+| `iteraciones`    | Cantidad de ciclos de simulación          |
+| `num_semaforos`  | Número total de semáforos                 |
+| `num_vehiculos`  | Número total de vehículos en la simulación|
+| `longitud_carril`| Posiciones desde el cruce hasta el final   |
 
----
-
-## 🌱 Parámetros del modelo (en el código)
-
-En ambos `.c` hay valores por defecto si no se pasan argumentos:
-```c
-P.p_regrow = 0.02f;  // Probabilidad de rebrote por celda y paso
-P.E_move_cost = 1;   // Energía que pierde un animal al moverse
-P.E_eat_plant = 5;   // Energía obtenida al comer planta
-P.E_eat_herb  = 20;  // Energía obtenida al comer herbívoro
-P.E_repro     = 30;  // Energía necesaria para reproducirse
+**Ejemplo:**
+```bash
+./sim_seq 10 4 20 5
+./sim_omp 10 4 20 5
 ```
-
-**Ajustes comunes:**
-- Subir `p_regrow` → más plantas, herbívoros sobreviven más.
-- Subir `E_move_cost` → animales mueren antes si no comen.
-- Bajar `E_repro` → más reproducción.
-
----
-
-## 📊 Salida
-
-Cada 100 pasos:
-```
-t=300  plantas=39281  herb=15  pred=0
-```
-- `t` → paso actual.
-- `plantas` → número de celdas con planta.
-- `herb` / `pred` → número de animales vivos.
 
 ---
 
@@ -80,55 +53,69 @@ t=300  plantas=39281  herb=15  pred=0
 
 Antes de ejecutar la versión paralela:
 ```bash
-export OMP_NUM_THREADS=12   # usa 12 hilos
+export OMP_NUM_THREADS=8   # usa 8 hilos iniciales
 ```
 
-Parámetros opcionales:
-```bash
-export OMP_SCHEDULE="dynamic,128"
-export OMP_PROC_BIND=spread
-export OMP_PLACES=cores
-```
+En el código paralelo:
+- **`omp_set_dynamic(1)`** → permite ajuste dinámico de hilos.
+- **`omp_set_nested(1)`** → habilita paralelismo anidado.
+- El número de hilos puede ajustarse en tiempo de ejecución según la congestión.
 
 ---
 
-## 🧪 Presets recomendados
+## 📊 Salida esperada
 
-### 💨 Rápido (demo 10–15s)
+En cada iteración se imprime:
+```
+Iteración 1 (hilos max: 8)
+Vehículo 0 - Carril 0 - Posición: 0
+Vehículo 1 - Carril 1 - Posición: 1
+...
+Semáforo 0 - Estado: 2
+Semáforo 1 - Estado: 0
+...
+```
+- **Vehículo N** → su ID, carril y posición actual.
+- **Semáforo N** → su ID y estado (`0=ROJO, 1=AMARILLO, 2=VERDE`).
+
+---
+
+## 🧪 Ejemplos de uso
+
+### Ejecución rápida (demo)
 ```bash
-./sim_seq.exe 120 120 300 800 300 42
+./sim_seq 5 3 10 4
+export OMP_NUM_THREADS=4
+./sim_omp 5 3 10 4
+```
+
+### Ejecución media
+```bash
+./sim_seq 10 4 20 5
 export OMP_NUM_THREADS=8
-./sim_omp.exe 120 120 300 800 300 42
+./sim_omp 10 4 20 5
 ```
 
-### ⚖ Medio (buena visualización)
+### Ejecución más pesada
 ```bash
-./sim_seq.exe 300 300 800 7000 2800 1234
+./sim_seq 20 6 50 7
 export OMP_NUM_THREADS=12
-./sim_omp.exe 300 300 800 7000 2800 1234
-```
-
-### 🏋 Grande (estrés CPU)
-```bash
-./sim_seq.exe 600 600 1000 15000 6000 1234
-export OMP_NUM_THREADS=12
-./sim_omp.exe 600 600 1000 15000 6000 1234
+./sim_omp 20 6 50 7
 ```
 
 ---
 
 ## ⏱ Medición de tiempo
-
 ```bash
-time ./sim_seq.exe 300 300 800 7000 2800 1234
-export OMP_NUM_THREADS=12
-time ./sim_omp.exe 300 300 800 7000 2800 1234
+time ./sim_seq 10 4 20 5
+export OMP_NUM_THREADS=8
+time ./sim_omp 10 4 20 5
 ```
 
 ---
 
 ## 📝 Notas
-- Usa la **misma semilla** (`seed`) para comparar resultados.
-- Si `nPred` es muy alto, los herbívoros pueden extinguirse rápido.
-- Si `p_regrow` es muy alto, la población puede crecer indefinidamente.
-- Los parámetros pueden ajustarse para ver dinámicas de colapso y recuperación.
+- La versión paralela resuelve **condiciones de carrera** con arreglos de ocupación y directivas `atomic`.
+- El uso de `schedule(dynamic)` en vehículos mejora el balanceo de carga cuando algunos carriles están bloqueados.
+- El paralelismo anidado se usa en la actualización de semáforos como ejemplo didáctico.
+- Las constantes de tiempos de los semáforos (`t_verde`, `t_amarillo`, `t_rojo`) se pueden ajustar para cambiar el flujo de tráfico.
