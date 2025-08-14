@@ -23,7 +23,7 @@ typedef struct {
     int id;
     Estado estado;
     int t_verde, t_amarillo, t_rojo; // duraciones
-    int reloj_fase;                  // progreso dentro de la fase actual
+    int reloj_fase;                  // progreso dentro de la fase actual   
 } Semaforo;
 
 // Vehículo: pertenece a un carril (indexa un semáforo) y tiene una posición.
@@ -81,7 +81,6 @@ static void inicializar(int nv, int nl, Vehiculo* vs, Semaforo* ls) {
     for (int i = 0; i < nv; ++i) {
         vs[i].id = i;
         vs[i].carril = i % nl;
-        // Algunos empezarán en 0 para simular cola; otros ya "pasaron"
         vs[i].posicion = (i % 3 == 0) ? 0 : 1;
     }
 }

@@ -8,21 +8,6 @@
 // Ejecutar:
 //   ./sim_omp 50 4 20 5
 //     -> 50 iteraciones, 4 semáforos, 20 vehículos, longitud de carril 5
-//
-// Qué paralelicé y por qué:
-// - Sections: actualizo semáforos y muevo vehículos en paralelo,
-//   porque son dos tareas lógicamente independientes en cada iteración.
-// - Parallel for (static) en semáforos: cada luz se actualiza sola,
-//   el costo es parejo y conviene reparto estático.
-// - Paralelismo anidado dentro de la actualización de semáforos:
-//   incluyo una mini fase "interna" para mostrar niveles anidados.
-// - Parallel for (dynamic) en vehículos: el trabajo real varía por carril
-//   (algunos autos se quedan esperando, otros avanzan), el reparto
-//   dinámico balancea mejor.
-// - Atomics para reservar posiciones destino y evitar colisiones
-//   (ejemplo de condición de carrera realista).
-//
-// Nota: El objetivo es didáctico. El modelo es simple a propósito.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,9 +43,7 @@ static void rotar_fase(Semaforo* s) {
 
 // Actualizo todos los semáforos en paralelo.
 // Uso schedule(static) porque cada luz hace prácticamente el mismo trabajo.
-// Además, demuestro paralelismo ANIDADO con una mini-tarea interna.
 static void actualizar_semaforos(Semaforo* ls, int n) {
-    // --- Nivel 1 de paralelismo ---
     #pragma omp parallel for schedule(static)
     for (int i = 0; i < n; ++i) {
         Semaforo* s = &ls[i];
@@ -70,16 +53,7 @@ static void actualizar_semaforos(Semaforo* ls, int n) {
         if (s->estado == VERDE    && s->reloj_fase >= s->t_verde)    rotar_fase(s);
         if (s->estado == AMARILLO && s->reloj_fase >= s->t_amarillo) rotar_fase(s);
         if (s->estado == ROJO     && s->reloj_fase >= s->t_rojo)     rotar_fase(s);
-
-        // --- Nivel 2 de paralelismo (anidado) ---
-        // Esto simula pequeños cálculos por sub-tareas del semáforo,
-        // solo para demostrar nested parallelism. No afecta la lógica.
-        #pragma omp parallel for num_threads(2)
-        for (int k = 0; k < 4; ++k) {
-            // Volatile para que el compilador no elimine el "trabajo"
-            volatile int x = (s->estado + k) * (s->id + 1);
-            (void)x;
-        }
+        
     }
 }
 
